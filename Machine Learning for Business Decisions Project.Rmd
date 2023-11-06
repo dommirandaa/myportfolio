@@ -1,0 +1,242 @@
+---
+title: "Business Decision Algorithims"
+author: "By: Dominique Miranda"
+
+output:
+  html_document: default
+  pdf_document: default
+---
+>Case: A movie chain in the southwest region, MovieMagic is considering ways in which it can
+increase spending on concessions. It has collected information of 2000 of its customers,
+some of whom are part of their loyalty program and some who are not. They have
+information on the following 8 variables, which they plan to use as predictors. They plan to use amount_spent (i.e. the amount spent on concessions) as the outcome variable
+since they have learnt from observations that much of the profit is derived from concession
+sales.
+
+```{r}
+# install libraries
+library(dplyr)
+library(tidyverse)
+library(topicmodels)
+library(ggplot2)
+library(tidytext)
+library(tidyr)
+library(RTextTools)
+library(wordcloud)
+library(tm)
+library(quanteda)
+library(reshape2)
+library(quanteda.textplots)
+library(car)
+library(glmnet)
+library(caret)
+library(ROCR)
+library(psycho)
+library(textdata)
+library(correlation)
+library(reticulate)
+```
+
+**Q1:Regression analysis**
+```{r, warning=FALSE, message=FALSE}
+# Read in the data
+data1 <- read.csv("http://data.mishra.us/files/project_data.csv")
+
+#linear regression
+model1<- lm(amount_spent~., data=data1)
+summary(model1) #each level of each categorical predictor
+
+```
+>Job and education are significant predictors due to p-value greater than 0.05.
+
+**Q2:Penalized Regression**
+```{r, warning=FALSE, message=FALSE}
+vif(model1) #test for multicollinearity
+
+data2<- read.csv(url("http://data.mishra.us/files/project_data.csv"))
+
+#Selecting relevant predictors using penalized regression
+correlation <- correlation(data2)
+ggcorrplot::ggcorrplot(correlation,hc.order=TRUE, type="lower",lab=TRUE)
+
+x <- model.matrix(amount_spent~., data2)[,-1]
+y <- data1$amount_spent
+
+#LASSO
+lasso_model <- cv.glmnet(x, y, alpha = 1)
+plot(lasso_model)
+
+#Ridge
+ridge_model <- cv.glmnet(x, y, alpha = 0)
+plot(ridge_model)
+```
+
+>Since values of greater than 1.5 indicate multicolinearity, job and education are multicolinear. The most relevant predictors for understanding their positive influence on the outcome variable are amount spent & days member & movies seen, according to the correlation matrix diagram. In regards to negative influence, age & streaming hold that influence.
+
+**Q4 & Q5: Predictive model**
+```{r, warning=FALSE, message=FALSE}
+#training the model 70% & 30%
+set.seed(1234)
+datasplit <- createDataPartition(data1$amount_spent, p = 0.7, list=FALSE)
+trainData <- data1[datasplit,]
+testData <- data1[-datasplit,]
+
+#obtaining predictions from the model
+lmregression<- train(amount_spent~., data=trainData, method = "lm",
+na.action=na.exclude)
+summary(lmregression)
+
+#calculating RMSE, R-squared, and MAE for the predicted model values
+predictions <-predict(lmregression, newdata=testData)
+postResample(predictions, testData$amount_spent)
+```
+>The R-squared for the linear regression model with 70% & 30% set is 0.554890. The RMSE is 9.788593 and the MAE is 7.802252
+
+```{r}
+#training the model 80% & 20%
+set.seed(1234)
+datasplit <- createDataPartition(data1$amount_spent, p = 0.8, list=FALSE)
+trainData <- data1[datasplit,]
+testData <- data1[-datasplit,]
+
+#obtaining predictions from the model
+lmregression<- train(amount_spent~., data=trainData, method = "lm",
+na.action=na.exclude)
+summary(lmregression)
+
+#calculating RMSE, R-squared, and MAE for the predicted model values
+predictions <-predict(lmregression, newdata=testData)
+postResample(predictions, testData$amount_spent)
+```
+
+>The R-squared for the linear regression model with 80% & 20% set is 0.6674792. The RMSE is 9.6496312 and the MAE is 7.6528047.
+
+>Questions 1-5:
+
+> 1. Of the 8 predictors, which predictors have a significant influence on amount spent on concessions? Which predictors are multicollinear? Justify your response with reasons from the analysis. 
+The predictors that had significant influence on amount spent on concessions are job and education. If a customer has an education, they are more likely to have a job. And in turn, have a steady income to buy food from concession stands at the movies. Since values of greater than 1.5 indicate multicolinearity, job and education are multicolinear.
+
+> 2. Which predictors have a positive influence and which predictors have a negative influence on the amount spent on concessions? Which analysis, regression or penalized regression, helped you answer this question? If you ran a neural net model, can it help you find the significant (or not) predictors and their magnitude and direction of influence on the outcome?
+The predictors that have a positive influence are amount spent & days member at 0.79 correlation & movies seen & amount spent at 0.22. The predictors that have negative influence are age & streaming with a correlation of -0.03. The penalized regression analysis helped answer this question through the use of the correlation matrix. Yes, a neural net model can help find the significant (or not), predictors, magnitude, and direction of influence because knowing which customers are likely to drop-off versus those that have stayed allows a firm to come up with customized strategies for disappointed customer's reviews to be addressed.
+
+> 3. Which analysis, linear regression or penalized regression, helps you select relevant variables? Which predictor variables would you use in the model? Justify your answer using the analysis. Would a Ridge or a LASSO help in selecting relevant predictors?
+Penalized regression helped me select the relevant variables of by summarizing each level of each categorical predictor correlation, while addressing multicolinearity. Predictor variables I would use in the model are job and education because these variables are the ones with a significant p-value. A LASSO would help in selecting relevant predictors through the use of the VIF model because it can shrink the estimates to zero for less relevant predictors. MovieMagic would then knows which predictors are relevant to them and can focus their resources and improve sales.
+
+> 4. If you split the data 70-30 versus 80-20, how does it influence RMSE and R-squared values of the linear regression?
+The R-squared for the linear regression model with 70% & 30% set is 0.554890. The RMSE is 9.788593 and the MAE is 7.802252. The R-squared for the linear regression model with 80% & 20% set is 0.6674792. The RMSE is 9.6496312 and the MAE is 7.6528047. As a result, when tge data us sokue 80-20, the R-squared value increases, the RMSE value decreases, and the MAE value decreases.
+
+> 5. Given the regression analysis, what strategies can MovieMagic come up with to increase amount spent on concessions? Discuss the magnitude and direction of the anticipated effect. Use both statistical justification and a simplified explanation (anticipating many decision-makers at MovieMagic may not know all the technical jargon).
+Since job and education are significant predictors, some strategies that MovieMagic can come up with to increase amount spent on concessions is to market to offices of employment. MovieMagic can hand out flyer coupons indicating a certain spending rate will get the customer a free treat or a certain percent off their purchase. This will drive the items per order to increase concession sales.
+
+**Q6:Text Analysis**
+```{r, warning=FALSE, message=FALSE}
+text <- read.csv("http://data.mishra.us/files/project_reviews.csv")
+
+#positive ratings
+positive <- text %>%
+  filter((star >= 3)) 
+
+positive$text <- as.character(positive$text)
+set.seed(1234)
+pos_corpus <- VCorpus(VectorSource(positive$text))
+
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+pos_corpus <- tm_map(pos_corpus, toSpace, "/|@|\\|")
+pos_corpus <- tm_map(pos_corpus, stripWhitespace) # remove white space
+pos_corpus <- tm_map(pos_corpus, content_transformer(tolower))
+pos_corpus <- tm_map(pos_corpus, removeNumbers) # remove numbers
+pos_corpus <- tm_map(pos_corpus, removePunctuation) # remove punctuations
+pos_corpus <- tm_map(pos_corpus, removeWords, stopwords("en"))
+
+#Term Document Matrix
+dtm <- TermDocumentMatrix(pos_corpus,control = list(weighting = weightTfIdf))
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+
+#wordcloud based on POSITIVE valence
+set.seed(1234)
+wordcloud(words = d$word, freq = d$freq, min.freq = 1, max.words=200, random.order=FALSE,
+          rot.per=0.35,colors=brewer.pal(8, "Dark2"),scale=c(3, 0.7))
+
+
+#negative ratings
+negative <- text %>%
+  filter((star < 3)) 
+
+negative$text <- as.character(negative$text)
+set.seed(1234)
+neg_corpus <- VCorpus(VectorSource(negative$text))
+
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+neg_corpus <- tm_map(neg_corpus, toSpace, "/|@|\\|")
+neg_corpus <- tm_map(neg_corpus, stripWhitespace) # remove white space
+neg_corpus <- tm_map(neg_corpus, content_transformer(tolower))
+neg_corpus <- tm_map(neg_corpus, removeNumbers) # remove numbers
+neg_corpus <- tm_map(neg_corpus, removePunctuation) # remove punctuations
+neg_corpus <- tm_map(neg_corpus, removeWords, stopwords("en"))
+
+#Term Document Matrix
+neg_dtm <- TermDocumentMatrix(neg_corpus,control = list(weighting = weightTfIdf))
+neg_m <- as.matrix(neg_dtm)
+neg_v <- sort(rowSums(neg_m),decreasing=TRUE)
+neg_d <- data.frame(word = names(neg_v),freq=neg_v)
+
+#wordcloud based on NEGATIVE valence
+set.seed(1234)
+wordcloud(words = neg_d$word, freq = neg_d$freq, min.freq = 1, max.words=100, random.order=FALSE,
+          rot.per=0.35,colors=brewer.pal(8, "Dark2"),scale=c(3, 0.7))
+```
+
+>First, 'great' appears as one of the most frequently used words. Second, experience is as frequently mentioned as 'service', so customers expect a top tier atmosphere along with excellent customer service. This could then lead to how well a concession item is serviced to a customer that good lead to a postive or negative review, such as whether or not their popcorn was hot and fresh leaving a 'bad' review from the negative wordcloud.
+
+**Q7:Topic Model**
+```{r}
+#Latent Dirichlet Analysis
+text <- read.csv("http://data.mishra.us/files/project_reviews.csv")
+
+#remove stop words
+corpus <- VCorpus(VectorSource(text$text))
+
+#function to clean /,@,\\,|
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+corpus <- tm_map(corpus, toSpace, "/|@|\\|")
+corpus<- tm_map(corpus, stripWhitespace) # remove white space
+
+#convert all to lower case else same word as lower and uppercase will classified as different
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers) # remove numbers
+corpus <- tm_map(corpus, removePunctuation) # remove punctuations
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+dtm <- DocumentTermMatrix(corpus)
+
+set.seed(234)
+rowTotals <- apply(dtm , 1, sum)
+dtm <- dtm[rowTotals> 0, ]
+lda <- LDA(dtm, k = 3, method = "Gibbs", control = NULL)
+topics <- tidy(lda, matrix = "beta") # beta is the topic-word density
+
+top_terms <- topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>% # top_n picks 10 topics.
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+```
+
+>Questions 6-8:
+
+> 6. MovieMagic wants to visualize the reviews through a wordcloud and wants to find out which words are used most commonly in the reviews that customers write for MovieMagic. Create 2 wordclouds - one for reviews that received 3, 4, or 5 star ratings and another with reviews that received 1 or 2 stars ratings. Knowing the prominent words in each of the wordclouds, what strategies can be developed in messaging customers? Would the strategies differ?
+The prominent words in the positive ratings are 'great', 'movie', and 'love'. The prominent words in the negative ratings are 'order','lasagna', 'meal', and 'theater'. Some strategies that can be developed in messaging customers could be to offer a free food voucher for a bad review to increase customer satisfaction, as some bad reviews were centered around the food service.Another strategy could be that customers are cold when they go to the movies and MovieMagic should keep the temperatures lower. This integrates with the regression insights because with the regression analysis we developed a theory to hand out flyers to people with jobs & an education in industrial districts--where we are most likely to find this demographic. 
+
+> 7. MovieMagic also wants to use topic modeling to find out whether the content in the reviews could be categorized into specific topics. If you used LDA to create 3 topic groups (k= 3), MovieMagic wants you to use the words within the 3 topics to infer topic title. Which term is the most relevant in each of the three topics and how would it inform your business strategy? Given the topics you inferred what strategies would you suggest are possible for MovieMagic if it wants to increase concession sales. Would you recommend promotions or advertising or loyalty program; justify your choice of business strategy?
+The term that is the most relevant in topic 1 is great, in topic 2 is movie, and in topic 3 is food. This would inform my business strategy by notifying MovieMagic that if MovieMagic wants to increase concession sales, I recommend them focusing on the three topics so that they can provide superior experience in those topics. This will lead to increase in sales as customers are noticing these topics the most according the the review. This leads to MovieMagic either upping food orders or for an example, popcorn quality. Yes, I would recommend promotions such as a 'buy 3, get one free' to get coustomers to buy more food and in turn, increase sales. A loyaly program would also be a good idea because it establishes a line from the business to the customer and the customer will be more than likely to come back again for these points.
+
+> 8. MovieMagic asks you whether your analysis reflects a causal relationship. Discuss any limitations of the dataset and your analysis regarding causal inference. What experiment might you recommend given these limitations and your analysis? What would be the experimental design? How would this lead to a deeper understanding of what business strategies would work? Make sure to clearly define the input variables, main effects, interactive influences (if any that you want to test for) and the outcome variable. *Example – using the top terms from the LDA a 3 cell experiment can be designed to find out how using these terms in messaging before the movie begins influences concession sales.
+The experiment that I would recommend is an ANOVA because it compares the mean values of each of the experimental conditions to test for the null hypothesis for the best fit. The benefits of ANOVA is its ability to compare means across three or more groups. The experimental design would be a 3 cell design that uses the top 3 terms influence to concession sales. This would lead to a deeper understanding of what business strategies would work because it would bring a better understanding between the predictors or factors on the outcome and each of the factors has multiple levels.
