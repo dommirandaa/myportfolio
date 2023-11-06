@@ -1,0 +1,186 @@
+---
+title: "Home Credit Default Risk"
+author: 'By: Dominique Miranda'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+>Business Problem: A majority of the loan applications are rejected because of insufficient or non-existent credit histories of the applicant, who are forced to turn to untrustworthy lenders for their financial needs. To address this issue, Home Credit uses telco and transactional data to predict the loan repayment abilities. If an applicant is deemed fit and capable to repay a loan, their application is accepted or otherwise rejected. Our analytics approach would be to use the full potential of the alternative data to see whether or not an applicant will be able to pay back a loan.
+  Home Credit wants to empower customers by enabling them to borrow easily and safely. With a solution, the business will have an increase in client’s and in turn provide more revenue for Home Credit. The scope of the project is to identify the potential defaulters based on exploratory data analysis with the data given about the applicants features. Our project goal is to find the model with the highest accuracy to deem the the default probability for a specific loan.Success metrics will be defined by a larger circle of prospective clients being accepted that are capable of making loan repayments. My team consists of myself, Jenisha Rawal, Tarun Gulati, and Anjan Kumar. The project will be finished by August 2nd and we will present to the stakeholders that day. Important project milestones to keep in mind would be to complete our exploratory data analysis notebook by June 18th and modeling by July 9th.
+
+>Table of Contents:
+Task 1: Cross-validation with Training set and Validation
+Task 2: Performance benchmark by majority class classifier.
+Task 3: Logistic Regression Models
+Task 4: Random Forest and Gradient Boosting
+Task 5: Data Transformations
+Task 6: Upsampling and Downsampling
+Task 7: Ensemble Model
+Task 8: Addtional Feature Engineering to Boost Model Performance
+
+>Task 1: Training set and a validation set using application_train.csv data set to do cross-validation.
+
+```{r}
+library(tidyverse)
+library(e1071)
+library(C50)
+library(psych)
+library(caret)
+library(rminer)
+library(rmarkdown)
+library(matrixStats)
+library(knitr)
+library(randomForest)
+library(xgboost)
+library(pROC)
+library(nnet)
+library(tictoc) #for tic() and toc()
+library(RWeka) #for Multilayerperceptron() and IBk()
+library(kernlab) #for ksvm()
+
+setwd("~/IS-6812")
+app <- read.csv(file = "application_train.csv", stringsAsFactors = TRUE)
+app$TARGET <- factor(app$TARGET)
+```
+
+```{r}
+set.seed(500)
+folds <- createFolds(app$TARGET, k = 3)
+str(folds)
+
+# first iteration of cross validation
+# prepared training and test sets 
+app_test <- app[folds[[1]], ]
+app_train <- app[-folds[[1]],]
+
+#str(app_test)
+#str(app_train)
+
+prop.table(table(app_train$TARGET))
+prop.table(table(app_test$TARGET))
+
+# compared with the class distribution in the whole data set
+prop.table(table(app$TARGET))
+
+# model using the training set
+app_nb <- naiveBayes(app_train$TARGET~.,app_train)
+app_nb
+```
+
+
+```{r}
+# second iteration of cv evaluation
+# training and test data
+app_test2 <- app[folds[[2]], ]
+app_train2 <- app[-folds[[2]],]
+
+prop.table(table(app_train2$TARGET))
+prop.table(table(app_test2$TARGET))
+
+# model using the training set
+app_nb2 <- naiveBayes(app_train2$TARGET~.,app_train2)
+
+```
+
+> The main dataset is “application_train.csv”. It contains 307,511 observations of 122 variables and provides static data for all applicants. The target variable indicates whether clients have difficulties in meeting payment in the main dataset. Each observation is a loan application and includes the target value, and some demographic information.
+
+>Task 2: Identify the performance benchmark established by the majority class classifier. 
+
+```{r}
+# performance evaluation metrics on 1st fold
+predicted_TARGET <- predict(app_nb, app_train)
+mmetric(app_train$TARGET, predicted_TARGET, metric="CONF") #confusion matrix
+mmetric(app_train$TARGET, predicted_TARGET, metric=c("ACC","TPR","PRECISION","F1"))
+```
+
+
+```{r}
+# performance evaluation metrics on 2nd fold
+predicted_TARGET2 <- predict(app_nb2, app_train2)
+mmetric(app_train2$TARGET, predicted_TARGET2, metric="CONF") #confusion matrix
+mmetric(app_train2$TARGET, predicted_TARGET2, metric=c("ACC","TPR","PRECISION","F1"))
+```
+
+>With these performance benchmark metrics, you can see that accuracy is at 30.62042 for the first fold and then decreases to 25.92 on the second fold for the number of correctly predicted classes. You can see from the confusion matrices that the True Positive and False Negative are higher than the other values, because there are significantly more '0's' associated with the target variable. The F1 score is the mean of precision and sensitivity at 40.49 at the first fold and 33.577 for the second fold.
+
+>Task 3: Logistic Regression Models using different predictors. 
+
+```{r}
+# Define the different sets of predictors
+predictor_sets <- list(
+  predictors1 = c("AMT_INCOME_TOTAL", "AMT_CREDIT"),
+  predictors2 = c("AMT_GOODS_PRICE", "AMT_ANNUITY"),
+  predictors3 = c("DAYS_REGISTRATION", "DAYS_EMPLOYED", "DAYS_ID_PUBLISH"),
+  predictors4 = c("APARTMENTS_AVG", "BASEMENTAREA_AVG", "YEARS_BEGINEXPLUATATION_AVG", "YEARS_BUILD_AVG")
+)
+
+# Fit logistic regression models with interaction terms
+models <- list()
+for (i in seq_along(predictor_sets)) {
+  predictors <- predictor_sets[[i]]
+  
+  # Create interaction terms
+  interaction_terms <- combn(predictors, 2, paste, collapse = "*")
+  
+  # Create the formula with interaction terms
+  formula <- as.formula(paste("TARGET ~ ", paste(c(predictors, interaction_terms), collapse = "+")))
+  
+  # Fit the logistic regression model
+  model <- glm(formula, data = app_train, family = "binomial")
+  models[[i]] <- model
+}
+
+# Evaluate models performance
+performance <- list()
+for (i in seq_along(models)) {
+  model <- models[[i]]
+  
+  # Make predictions on the test set
+  predictions <- predict(model, newdata = app_test, type = "response")
+  
+  # Convert predictions to binary values based on a threshold of 0.5
+  binary_predictions <- ifelse(predictions > 0.5, 1, 0)
+  
+  # Compute accuracy (ignoring missing values)
+  accuracy <- sum(binary_predictions == app_test$TARGET, na.rm = TRUE) / length(app_test$TARGET)
+  
+  
+  # Compute AUC
+  auc <- roc(as.numeric(app_test$TARGET) - 1, predictions,na.rm = TRUE)$auc
+  
+  # Store performance metrics
+  performance[[i]] <- list(accuracy = accuracy, auc = auc)
+}
+
+# Print performance metrics
+for (i in seq_along(performance)) {
+  cat(paste("Model", i, "Accuracy:", performance[[i]]$accuracy, "\n"))
+  cat(paste("Model", i, "AUC:", performance[[i]]$auc, "\n"))
+}
+
+```
+
+>Therefore we can assess the impact of interaction terms on the model's performance. The models were trained using logistic regression with different sets of predictors, including interaction terms.The model predicts the default probability for a specific loan. Let's compare the model performance in terms of accuracy and AUC:
+Model 1:
+Predictors: AMT_INCOME_TOTAL, AMT_CREDIT
+Accuracy: 0.919271443065636
+AUC: 0.516519499211906
+Model 2:
+Predictors: AMT_GOODS_PRICE, AMT_ANNUITY
+Accuracy: 0.918490985717631
+AUC: 0.567365019743164
+Model 3:
+Predictors: DAYS_REGISTRATION, DAYS_EMPLOYED, DAYS_ID_PUBLISH
+Accuracy: 0.919271443065636
+AUC: 0.550357021537715
+Model 4:
+Predictors: APARTMENTS_AVG, BASEMENTAREA_AVG, YEARS_BEGINEXPLUATATION_AVG, YEARS_BUILD_AVG
+Accuracy: 0.296661593693905
+AUC: 0.532661709462331
+
+
+>Results: Our team has used logistic regression models, cross validation, ensemble models, and feature engineering to decide what models will be useful. There is a relatively low risk in data accuracy because customer's could have supplied us with the incorrect 'yes' or 'no' response to increase their chances of getting loan. In terms of accuracy, all models (with and without interaction terms) have similar values. However, in terms of AUC, Model 2, which includes interaction terms between AMT_GOODS_PRICE and AMT_ANNUITY, has the highest AUC value, indicating better discrimination ability between classes.We can conclude that the inclusion of interaction terms improves the model performance in terms of AUC but does not have a significant impact on accuracy.
