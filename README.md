@@ -10,5 +10,7 @@ Projects:
 
 >Machine Learning for Business Decisions Project: Predictive & Linear Regression Modeling for illumniation on increasing business revenue, along with Text Analysis from movie reviews to pivot business growth direction
 
+>Data Visulatizations Project
+
 
 
