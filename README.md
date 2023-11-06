@@ -14,5 +14,5 @@ Projects:
 
 >Flower Shop To-Go Project: Mimics business transactions of a flower shop, such as buying a particular flower bouquet using Python
 
-
+>Data Science & Big Data Projects: Image Manipulation & Structured/Streaming Queries 
 
