@@ -1,5 +1,7 @@
 # myportfolio
 
+My Portfolio highlights projects that provide insight into my experience with coding and analyzing business decisions based off my findings.
+
 Projects:
 
 >Maverik Project: Time Series Analysis showcases use of benchmarks of RMSE, Mean Absolute Error, and MAPE in XGB Modeling using Python
