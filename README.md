@@ -4,6 +4,8 @@ My Portfolio highlights projects that provide insight into my experience with co
 
 Projects:
 
+>SQL ETL
+
 >Maverik Project: Time Series Analysis showcases use of benchmarks of RMSE, Mean Absolute Error, and MAPE in XGB Modeling using Python
 
 >Home Credit Default Risk Project: Showcases knowledge of data cleaning & preparation, Target Variable Analysis, Visualizations, Interpreting Results Between Target & Predictors
