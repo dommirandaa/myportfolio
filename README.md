@@ -10,7 +10,7 @@ Projects:
 
 >Home Credit Default Risk Project: Showcases knowledge of data cleaning & preparation, Target Variable Analysis, Visualizations, Interpreting Results Between Target & Predictors
 
->Business Decision Algorithms Project: Penalized Regression Analysis, Linear Regression, Predictivem Model, Topic Model, & Text Analysis to help influence business decisions on a grocery store company
+>Business Decision Algorithms Project: Penalized Regression Analysis, Linear Regression, Predictive Model, Topic Model, & Text Analysis to help influence business decisions on a grocery store company
 
 >Machine Learning for Business Decisions Project: Predictive & Linear Regression Modeling for illumination on increasing business revenue, along with Text Analysis from movie reviews to pivot business growth direction
 
